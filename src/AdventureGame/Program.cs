@@ -4,16 +4,13 @@ public class Program
 {
 	public static void Main()
 	{
-		Room r1 = new Room();
-
-
-		r1.SetDescription("Room 1");
+		Adventurer a = new Adventurer();
         
-		Room r2 = new Room();
-
-		r2.SetLamp(true);
-
-		Console.WriteLine(r1);
-		Console.WriteLine(r2);
+		Adventurer b = new Adventurer();
+		b.SetLamp(true);
+		b.SetKey(true);
+	
+		Console.WriteLine(a);
+		Console.WriteLine(b);
 	}
 }
