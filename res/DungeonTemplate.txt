@@ -1,32 +1,31 @@
-rows
-cols
-exitRow
-exitCol
-lampRow
-lampCol
-keyRow
-keyCol
-chestRow
-chestCol
-grueRow
-grueCol
-######################
-# #   ################
-# # ##################
-# # ##################
-# # ##################
-# # ##################
-# # ##################
-#           ##########
-######################
-######################
-######################
-######################
-######################
-1|Room description
-0|Room description
-0|Room description
-1|Room description
-0|Room description
-0|Room description
-1|Room description
+5
+5
+1
+3
+1
+1
+2
+2
+3
+2
+4
+1
+1
+1
+#####
+#L E#
+# K #
+# C #
+#G  #
+1|The dungeon entrance. A lamp hangs on the wall. Grab it!
+0|A dim corridor heading east.
+1|The exit chamber! Stairs lead up to freedom.
+0|A dark passage heading down.
+1|The dungeon floor. A heavy iron key lies here!
+0|A passage leading west.
+0|A damp corridor.
+0|The treasure vault! The ancient chest glimmers!
+0|A narrow corridor heading east.
+0|A shadowy alcove.
+0|A chamber where the Grue lurks.
+0|A cold stone passage.
