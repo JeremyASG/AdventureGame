@@ -18,7 +18,7 @@
 # C #
 #G  #
 1|The dungeon entrance. A lamp hangs on the wall. Grab it!
-0|A dim corridor heading east.
+0|A dim corridor heading north.
 1|The exit chamber! Stairs lead up to freedom.
 0|A dark passage heading down.
 1|The dungeon floor. A heavy iron key lies here!
