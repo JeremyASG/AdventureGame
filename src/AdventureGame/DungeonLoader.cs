@@ -2,110 +2,145 @@ namespace AdventureGame;
 
 public static class DungeonLoader
 {
-	private const char Wall = '#';
+    private const char Wall = '#';
 
-	public static Room[,] Load(string filePath)
-	{
-		string[] lines = File.ReadAllLines(filePath);
+    /// <summary>
+    /// Loads the dungeon from the given file and returns a DungeonData object
+    /// containing the Room grid and all special-position metadata.
+    ///
+    /// File format (one integer per line):
+    ///   0  rows
+    ///   1  cols
+    ///   2  exitRow
+    ///   3  exitCol
+    ///   4  lampRow
+    ///   5  lampCol
+    ///   6  keyRow
+    ///   7  keyCol
+    ///   8  chestRow
+    ///   9  chestCol
+    ///  10  grueRow
+    ///  11  grueCol
+    ///  12  playerStartRow
+    ///  13  playerStartCol
+    ///  14 .. 14+rows-1   layout (one row per line, '#' = wall, any other char = room)
+    ///  14+rows ..        room descriptions  "litFlag|description text"
+    /// </summary>
+    public static DungeonData Load(string filePath)
+    {
+        string[] lines = File.ReadAllLines(filePath);
 
-		int rows = int.Parse(lines[0]);
-		int cols = int.Parse(lines[1]);
+        int rows         = int.Parse(lines[0]);
+        int cols         = int.Parse(lines[1]);
+        int exitRow      = int.Parse(lines[2]);
+        int exitCol      = int.Parse(lines[3]);
+        int lampRow      = int.Parse(lines[4]);
+        int lampCol      = int.Parse(lines[5]);
+        int keyRow       = int.Parse(lines[6]);
+        int keyCol       = int.Parse(lines[7]);
+        int chestRow     = int.Parse(lines[8]);
+        int chestCol     = int.Parse(lines[9]);
+        int grueRow      = int.Parse(lines[10]);
+        int grueCol      = int.Parse(lines[11]);
+        int playerStartRow = int.Parse(lines[12]);
+        int playerStartCol = int.Parse(lines[13]);
 
-		int exitRow = int.Parse(lines[2]);
-		int exitCol = int.Parse(lines[3]);
-		int lampRow = int.Parse(lines[4]);
-		int lampCol = int.Parse(lines[5]);
-		int keyRow = int.Parse(lines[6]);
-		int keyCol = int.Parse(lines[7]);
-		int chestRow = int.Parse(lines[8]);
-		int chestCol = int.Parse(lines[9]);
+        int layoutStart       = 14;
+        int descriptionsStart = layoutStart + rows;
 
-		// lines[10] and lines[11] are grueRow/grueCol if needed elsewhere
+        if (lines.Length < descriptionsStart)
+            throw new FormatException("File does not contain enough layout rows.");
 
-		int layoutStart = 12;
-		int descriptionsStart = layoutStart + rows;
+        Room[,] dungeon = new Room[rows, cols];
+        List<(int row, int col)> traversableTiles = new();
 
-		if (lines.Length < descriptionsStart)
-			throw new FormatException("File does not contain enough layout rows.");
+        // ── Build the room grid ──────────────────────────────────────────────
+        for (int row = 0; row < rows; row++)
+        {
+            string layoutLine = lines[layoutStart + row];
 
-		Room[,] dungeon = new Room[rows, cols];
-		List<(int row, int col)> traversableTiles = new();
+            if (layoutLine.Length != cols)
+                throw new FormatException(
+                    $"Layout row {row} must contain exactly {cols} characters.");
 
-		for (int row = 0; row < rows; row++)
-		{
-			string layoutLine = lines[layoutStart + row];
+            for (int col = 0; col < cols; col++)
+            {
+                if (layoutLine[col] != Wall)
+                {
+                    dungeon[row, col] = new Room();
+                    traversableTiles.Add((row, col));
+                }
+            }
+        }
 
-			if (layoutLine.Length != cols)
-				throw new FormatException($"Layout row {row} must contain exactly {cols} characters.");
+        // ── Validate description count ───────────────────────────────────────
+        int descriptionCount = lines.Length - descriptionsStart;
+        if (descriptionCount != traversableTiles.Count)
+            throw new FormatException(
+                $"Description count ({descriptionCount}) must match " +
+                $"traversable tile count ({traversableTiles.Count}).");
 
-			for (int col = 0; col < cols; col++)
-			{
-				if (layoutLine[col] != Wall)
-				{
-					dungeon[row, col] = new Room();
-					traversableTiles.Add((row, col));
-				}
-			}
-		}
+        // ── Assign room properties ────────────────────────────────────────────
+        for (int i = 0; i < traversableTiles.Count; i++)
+        {
+            string[] parts = lines[descriptionsStart + i].Split('|', 2);
 
-		int descriptionCount = lines.Length - descriptionsStart;
+            if (parts.Length != 2)
+                throw new FormatException(
+                    $"Invalid room description line: {lines[descriptionsStart + i]}");
 
-		if (descriptionCount != traversableTiles.Count)
-		{
-			throw new FormatException(
-					$"Description count ({descriptionCount}) must match traversable tile count ({traversableTiles.Count})."
-			);
-		}
+            bool isLit = parts[0] switch
+            {
+                "1" => true,
+                "0" => false,
+                _   => throw new FormatException("Room lit value must be 1 or 0.")
+            };
 
-		for (int i = 0; i < traversableTiles.Count; i++)
-		{
-			string[] parts = lines[descriptionsStart + i].Split('|', 2);
+            string description = parts[1];
 
-			if (parts.Length != 2)
-				throw new FormatException($"Invalid room description line: {lines[descriptionsStart + i]}");
+            var (row, col) = traversableTiles[i];
+            Room room = dungeon[row, col];
 
-			bool isLit = parts[0] switch
-			{
-				"1" => true,
-				"0" => false,
-				_ => throw new FormatException("Room lit value must be 1 or 0.")
-			};
+            room.SetLit(isLit);
+            room.SetDescription(description);
 
-			string description = parts[1];
+            room.SetLamp (row == lampRow  && col == lampCol);
+            room.SetKey  (row == keyRow   && col == keyCol);
+            room.SetChest(row == chestRow && col == chestCol);
 
-			var (row, col) = traversableTiles[i];
-			Room room = dungeon[row, col];
+            room.SetNorth(IsTraversable(dungeon, row - 1, col));
+            room.SetSouth(IsTraversable(dungeon, row + 1, col));
+            room.SetEast (IsTraversable(dungeon, row,     col + 1));
+            room.SetWest (IsTraversable(dungeon, row,     col - 1));
+        }
 
-			room.SetLit(isLit);
-			room.SetDescription(description);
+        // ── Sanity-check key positions ────────────────────────────────────────
+        ValidateTraversableTile(dungeon, exitRow,       exitCol,       "exit");
+        ValidateTraversableTile(dungeon, playerStartRow, playerStartCol, "player start");
+        ValidateTraversableTile(dungeon, grueRow,       grueCol,       "grue");
 
-			room.SetLamp(row == lampRow && col == lampCol);
-			room.SetKey(row == keyRow && col == keyCol);
-			room.SetChest(row == chestRow && col == chestCol);
+        return new DungeonData
+        {
+            Dungeon        = dungeon,
+            ExitRow        = exitRow,
+            ExitCol        = exitCol,
+            GrueRow        = grueRow,
+            GrueCol        = grueCol,
+            PlayerStartRow = playerStartRow,
+            PlayerStartCol = playerStartCol,
+        };
+    }
 
-			room.SetNorth(IsTraversable(dungeon, row - 1, col));
-			room.SetSouth(IsTraversable(dungeon, row + 1, col));
-			room.SetEast(IsTraversable(dungeon, row, col + 1));
-			room.SetWest(IsTraversable(dungeon, row, col - 1));
-		}
+    private static bool IsTraversable(Room[,] dungeon, int row, int col)
+        => row >= 0
+        && row < dungeon.GetLength(0)
+        && col >= 0
+        && col < dungeon.GetLength(1)
+        && dungeon[row, col] != null;
 
-		ValidateTraversableTile(dungeon, exitRow, exitCol, "exit");
-
-		return dungeon;
-	}
-
-	private static bool IsTraversable(Room[,] dungeon, int row, int col)
-	{
-		return row >= 0 &&
-					 row < dungeon.GetLength(0) &&
-					 col >= 0 &&
-					 col < dungeon.GetLength(1) &&
-					 dungeon[row, col] != null;
-	}
-
-	private static void ValidateTraversableTile(Room[,] dungeon, int row, int col, string name)
-	{
-		if (!IsTraversable(dungeon, row, col))
-			throw new FormatException($"The {name} position must be on a traversable tile.");
-	}
+    private static void ValidateTraversableTile(Room[,] dungeon, int row, int col, string name)
+    {
+        if (!IsTraversable(dungeon, row, col))
+            throw new FormatException($"The {name} position ({row},{col}) must be on a traversable tile.");
+    }
 }
